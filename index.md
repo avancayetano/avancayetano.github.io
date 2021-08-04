@@ -1,2 +1,0 @@
-# Anthony Van Cayetano
-## Heyyy
