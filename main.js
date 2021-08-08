@@ -6,26 +6,35 @@ function Canvas(canvasId){
 	self.canvas.height = document.body.clientHeight;
 	self.canvas.width = document.body.clientWidth;
 
-
 	var vertices = [
-		[[-100], [-100], [-100]],
-		[[100], [-100], [-100]],
-		[[100], [100], [-100]],
-		[[-100], [100], [-100]],
-		[[-100], [-100], [100]],
-		[[100], [-100], [100]],
-		[[100], [100], [100]],
-		[[-100], [100], [100]]
+		[[-300], [-300], [-300], [1]],
+		[[300], [-300], [-300], [1]],
+		[[300], [300], [-300], [1]],
+		[[-300], [300], [-300], [1]],
+		[[-300], [-300], [300], [1]],
+		[[300], [-300], [300], [1]],
+		[[300], [300], [300], [1]],
+		[[-300], [300], [300], [1]]
 	];
 	var edges = [
 		[0, 1], [1, 2], [2, 3], [3, 0],
 		[4, 5], [5, 6], [6, 7], [7, 4],
 		[0, 4], [1, 5], [2, 6], [3, 7]
 	];
-	var shape = new Shape(vertices, edges, [0, 0, 0]);
+	var shape;
+	var shapes = [];
+	for (var i = 0; i < 30; i++){
+		shape = new Shape(vertices, edges, [0, 0, 0, 0]);
+		shape.reset(self.canvas.width, self.canvas.height);
+		shapes.push(shape);
+	}
+
+	self.camera = 400;
 
 	var transformation;
 	var projectionMat;
+	var translateMat;
+	var rotateMatX;
 	var rotateMatY;
 	var rotateMatZ;
 	var angle = 0;
@@ -40,17 +49,34 @@ function Canvas(canvasId){
 		self.context.restore();
 		self.context.lineWidth = 1;
 		self.context.strokeStyle = "white";
-
-		projectionMat = orthogonalProject();
+		
+		rotateMatX = rotateX(angle);
 		rotateMatY = rotateY(angle);
 		rotateMatZ = rotateZ(angle);
-		transformation = matrixMult(matrixMult(projectionMat, rotateMatY), rotateMatZ);
-		shape.transform(transformation);
-		shape.draw(self.context);
+
+		transformation = matrixMult(rotateMatX, matrixMult(rotateMatY, rotateMatZ))
+
+		for (var i = 0; i < shapes.length; i++){
+			shapes[i].project(transformation, self.camera);
+
+
+			shapes[i].draw(self.context, self.camera);
+
+			shapes[i].center[2] += shapes[i].velocity[2];
+			shapes[i].center[1] += shapes[i].velocity[1];
+			shapes[i].center[0] += shapes[i].velocity[0];
+
+			if (shapes[i].center[2] >= self.camera){
+				shapes[i].reset(self.canvas.width, self.canvas.height)
+			}
+		}
+
 		angle += 0.01;
 
 		window.requestAnimationFrame(self.draw);
 	};
+
+
 	return self;
 }
 
@@ -94,35 +120,69 @@ function matrixScale(A, s){
 
 function rotateX(angle){
 	return [
-		[0, Math.cos(angle), Math.sin(angle)],
-		[1, 0, 0],
-		[0, -Math.sin(angle), Math.cos(angle)]
+		[0, Math.cos(angle), Math.sin(angle), 0],
+		[1, 0, 0, 0],
+		[0, -Math.sin(angle), Math.cos(angle), 0],
+		[0, 0, 0, 1]
 	];
 }
 
 function rotateY(angle){
 	return [
-		[Math.cos(angle), 0, Math.sin(angle)],
-		[0, 1, 0],
-		[-Math.sin(angle), 0, Math.cos(angle)]
+		[Math.cos(angle), 0, Math.sin(angle), 0],
+		[0, 1, 0, 0],
+		[-Math.sin(angle), 0, Math.cos(angle), 0],
+		[0, 0, 0, 1]
 	];
 }
 
 function rotateZ(angle){
 	return [
-		[Math.cos(angle), Math.sin(angle), 0],
-		[-Math.sin(angle), Math.cos(angle), 0],
-		[0, 0, 1]
+		[Math.cos(angle), Math.sin(angle), 0, 0],
+		[-Math.sin(angle), Math.cos(angle), 0, 0],
+		[0, 0, 1, 0],
+		[0, 0, 0, 1]
 	];
 }
 
 
 function orthogonalProject(){
 	return [
-		[1, 0, 0],
-		[0, 1, 0],
-		[0, 0, 0]
+		[1, 0, 0, 0],
+		[0, 1, 0, 0],
+		[0, 0, 0, 0],
+		[0, 0, 0, 1]
 	];
+}
+
+function translate(tx, ty, tz){
+	return [
+		[1, 0, 0, tx],
+		[0, 1, 0, ty],
+		[0, 0, 1, tz],
+		[0, 0, 0, 1]
+	];
+}
+
+function project(camera, z){
+	try {
+		return [
+			[300/(camera-z), 0, 0, 0],
+			[0, 300/(camera-z), 0, 0],
+			[0, 0, 1, 0],
+			[0, 0, 0, 1]
+		];
+
+	}
+	catch(error){
+		return [
+			[0, 0, 0, 0],
+			[0, 0, 0, 0],
+			[0, 0, 0, 0],
+			[0, 0, 0, 0]
+		]
+	}
+
 }
 
 
@@ -133,15 +193,47 @@ class Shape{
 		this.center = center;
 		this.transformed = [];
 	}
-	transform(transformation){
+	project(transformation, camera){
 		for (var i = 0; i < this.vertices.length; i++){
-			this.transformed[i] = matrixMult(transformation, this.vertices[i]);
+			this.transformed[i] = matrixMult(matrixMult(translate(this.center[0], this.center[1], this.center[2]), transformation), this.vertices[i]);
+			this.transformed[i] = matrixMult(project(camera, this.transformed[i][2]), this.transformed[i])
 		}
 	}
-	draw(context){
+	draw(context, camera){
 		for (var i = 0; i < this.edges.length; i++){
-			context.stroke(drawLine(this.transformed[this.edges[i][0]], this.transformed[this.edges[i][1]]));
+			var start = this.transformed[this.edges[i][0]];
+			var end = this.transformed[this.edges[i][1]];
+			if (start[2] >= camera || end[2] >= camera){
+				break;
+			}
+			var path = drawLine(start, end);
+			context.stroke(path);
 		}
+	}
+
+	reset(screenWidth, screenHeight){
+		this.center = [
+			Math.random() * screenWidth - screenWidth / 2,
+			Math.random() * screenHeight - screenHeight / 2,
+			Math.random() * -4000 - 10000,
+			0
+		];
+
+		this.center[0] *= this.center[2] / 700;
+		this.center[1] *= this.center[2] / 700;
+		if (this.center[0] >= 0){
+			var velX = 5;
+		}
+		else {
+			var velX = -5;
+		}
+		if (this.center[1] >= 0){
+			var velY = 4;
+		}
+		else {
+			var velY = -4;
+		}
+		this.velocity = [velX, velY, Math.random() * 20 + 20];
 	}
 }
 
