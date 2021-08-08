@@ -238,4 +238,5 @@ class Shape{
 }
 
 var main = new Canvas("main-canvas");
+
 main.draw();

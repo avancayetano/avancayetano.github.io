@@ -7,9 +7,41 @@
 	top: 0px;
 	overflow: hidden;
 }
-#profile {
+.title {
+	position: relative;
+	display: block;
+	z-index: 10;
+	color: white;
+	margin: auto;
+	text-align: center;
+	width: 50%;
+	padding: 10px;
+	font-family: Tahoma, Arial, Helvetica, sans-serif;
+	font-size: 80px;
+	font-weight: bold;
+	cursor: default;
+
+}
+
+#profile-container {
 	position: relative;
 	z-index: 10;
 	color: white;
-	font: sans-serif;
+	margin:  auto;
+	text-align: center;
+	width: 50%;
+	padding: 10px;
+	font-family: Tahoma, Helvetica, sans-serif;
+	font-size: 24px;
+	font-weight: bold;
+	bottom: 10px;
+}
+#profile {
+	display: inline-block;
+	cursor: pointer;
+	color: white;
+	text-decoration: none;
+}
+#profile:hover {
+	color:  #22a6b3;
 }
