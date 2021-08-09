@@ -24,12 +24,17 @@ function Canvas(canvasId){
 	var shape;
 	var shapes = [];
 	for (var i = 0; i < 30; i++){
-		shape = new Shape(vertices, edges, [0, 0, 0, 0]);
-		shape.reset(self.canvas.width, self.canvas.height);
+		shape = new Shape(vertices, edges, [
+			[Math.random() * self.canvas.width - self.canvas.width / 2],
+			[Math.random() * self.canvas.height - self.canvas.height / 2],
+			[Math.random() * 18000 + 2000],
+			[0]
+		]);
 		shapes.push(shape);
 	}
 
-	self.camera = 400;
+	self.fov = Math.PI / 2;
+	self.screenZ = (self.canvas.width/2) / (Math.tan(self.fov/2));
 
 	var transformation;
 	var projectionMat;
@@ -39,17 +44,14 @@ function Canvas(canvasId){
 	var rotateMatZ;
 	var angle = 0;
 
-	self.context.translate(self.canvas.width/2, self.canvas.height/2);
-	self.context.transform(1, 0, 0, -1, 0, 0);
-
+	self.context.translate(Math.round(self.canvas.width / 2), Math.round(self.canvas.height / 2));
+	self.context.lineWidth = 1;
+	self.context.strokeStyle = "white";
+	
 	self.draw = function(){
-		self.context.save();
-		self.context.setTransform(1,0,0,1,0,0);
-		self.context.clearRect(0, 0, self.canvas.width, self.canvas.height);
-		self.context.restore();
-		self.context.lineWidth = 1;
-		self.context.strokeStyle = "white";
-		
+		self.context.clearRect(-Math.round(self.canvas.width / 2), -Math.round(self.canvas.height / 2), 
+			Math.round(self.canvas.width), Math.round(self.canvas.height));
+
 		rotateMatX = rotateX(angle);
 		rotateMatY = rotateY(angle);
 		rotateMatZ = rotateZ(angle);
@@ -57,17 +59,15 @@ function Canvas(canvasId){
 		transformation = matrixMult(rotateMatX, matrixMult(rotateMatY, rotateMatZ))
 
 		for (var i = 0; i < shapes.length; i++){
-			shapes[i].project(transformation, self.camera);
+			shapes[i].project(transformation, self.screenZ);
+			shapes[i].draw(self.context, self.screenZ);
 
+			shapes[i].center[2][0] += shapes[i].velocity[2];
+			shapes[i].center[1][0] += shapes[i].velocity[1];
+			shapes[i].center[0][0] += shapes[i].velocity[0];
 
-			shapes[i].draw(self.context, self.camera);
-
-			shapes[i].center[2] += shapes[i].velocity[2];
-			shapes[i].center[1] += shapes[i].velocity[1];
-			shapes[i].center[0] += shapes[i].velocity[0];
-
-			if (shapes[i].center[2] >= self.camera){
-				shapes[i].reset(self.canvas.width, self.canvas.height)
+			if (shapes[i].isOutside(self.canvas.width, self.canvas.height, self.screenZ)){
+				shapes[i].reset(self.canvas.width, self.canvas.height, self.fov);
 			}
 		}
 
@@ -83,8 +83,8 @@ function Canvas(canvasId){
 
 function drawLine(start, end){
 	var path = new Path2D();
-	path.moveTo(start[0], start[1]);
-	path.lineTo(end[0], end[1]);
+	path.moveTo(Math.round(start[0]), Math.round(start[1]));
+	path.lineTo(Math.round(end[0]), Math.round(end[1]));
 	return path;
 }
 
@@ -155,6 +155,19 @@ function orthogonalProject(){
 	];
 }
 
+function perspectiveProject(screenZ, z){
+	if (z == 0){
+		z = 1;
+	}
+	return [
+		[screenZ/z, 0, 0, 0],
+		[0, screenZ/z, 0, 0],
+		[0, 0, 1, 0],
+		[0, 0, 0, 1]
+	];
+}
+
+
 function translate(tx, ty, tz){
 	return [
 		[1, 0, 0, tx],
@@ -164,26 +177,6 @@ function translate(tx, ty, tz){
 	];
 }
 
-function project(camera, z){
-	try {
-		return [
-			[300/(camera-z), 0, 0, 0],
-			[0, 300/(camera-z), 0, 0],
-			[0, 0, 1, 0],
-			[0, 0, 0, 1]
-		];
-
-	}
-	catch(error){
-		return [
-			[0, 0, 0, 0],
-			[0, 0, 0, 0],
-			[0, 0, 0, 0],
-			[0, 0, 0, 0]
-		]
-	}
-
-}
 
 
 class Shape{
@@ -191,19 +184,35 @@ class Shape{
 		this.vertices = vertices;
 		this.edges = edges;
 		this.center = center;
+		this.transformedCenter = [];
 		this.transformed = [];
+		if (this.center[0] >= 0){
+			var velX = 4;
+		}
+		else {
+			var velX = -4;
+		}
+		if (this.center[1] >= 0){
+			var velY = 3;
+		}
+		else {
+			var velY = -3;
+		}
+		this.velocity = [velX, velY, -(Math.random() * 20 + 20)];
 	}
-	project(transformation, camera){
+	project(transformation, screenZ){
+		var translateMat = translate(this.center[0], this.center[1], this.center[2]);
+		this.transformedCenter = matrixMult(perspectiveProject(screenZ, this.center[2][0]), this.center);
 		for (var i = 0; i < this.vertices.length; i++){
-			this.transformed[i] = matrixMult(matrixMult(translate(this.center[0], this.center[1], this.center[2]), transformation), this.vertices[i]);
-			this.transformed[i] = matrixMult(project(camera, this.transformed[i][2]), this.transformed[i])
+			this.transformed[i] = matrixMult(matrixMult(translateMat, transformation), this.vertices[i]);
+			this.transformed[i] = matrixMult(perspectiveProject(screenZ, this.transformed[i][2]), this.transformed[i])
 		}
 	}
-	draw(context, camera){
+	draw(context, screenZ){
 		for (var i = 0; i < this.edges.length; i++){
 			var start = this.transformed[this.edges[i][0]];
 			var end = this.transformed[this.edges[i][1]];
-			if (start[2] >= camera || end[2] >= camera){
+			if (start[2] <= screenZ || end[2] <= screenZ){
 				break;
 			}
 			var path = drawLine(start, end);
@@ -211,29 +220,21 @@ class Shape{
 		}
 	}
 
-	reset(screenWidth, screenHeight){
-		this.center = [
-			Math.random() * screenWidth - screenWidth / 2,
-			Math.random() * screenHeight - screenHeight / 2,
-			Math.random() * -4000 - 10000,
-			0
-		];
+	isOutside(screenWidth, screenHeight, screenZ){
+		if (this.transformedCenter[2][0] <= screenZ || 
+			Math.abs(this.transformedCenter[1][0]) > screenHeight / 2 + 200 ||
+			Math.abs(this.transformedCenter[0][0]) > screenWidth / 2 + 200){
+				return true;
+		}
+	}
 
-		this.center[0] *= this.center[2] / 700;
-		this.center[1] *= this.center[2] / 700;
-		if (this.center[0] >= 0){
-			var velX = 5;
-		}
-		else {
-			var velX = -5;
-		}
-		if (this.center[1] >= 0){
-			var velY = 4;
-		}
-		else {
-			var velY = -4;
-		}
-		this.velocity = [velX, velY, Math.random() * 20 + 20];
+	reset(screenWidth, screenHeight, fov){
+		var z = Math.random() * 1000 + 20000;
+		var x = Math.random() * Math.tan(fov/2) * z - Math.tan(fov/2) * z / 2;
+		var y = Math.random() * Math.tan(fov/2) * z - Math.tan(fov/2) * z / 2;
+
+		this.center = [[x], [y], [z], [1]];
+		this.velocity = [0, 0, -(Math.random() * 20 + 30)];
 	}
 }
 
