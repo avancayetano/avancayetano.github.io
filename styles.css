@@ -1,5 +1,9 @@
+body {
+  overflow: hidden;
+}
+
 #main-canvas {
-	background-color: black;
+	background-color: rgb(34, 47, 62);
 	position: absolute;
 	margin: 0;
 	padding: 0;
@@ -23,8 +27,9 @@
 
 }
 
-#profile-container {
+.button-container {
 	position: relative;
+	top:  50%;
 	z-index: 10;
 	color: white;
 	margin:  auto;
@@ -34,14 +39,53 @@
 	font-family: Tahoma, Helvetica, sans-serif;
 	font-size: 24px;
 	font-weight: bold;
-	bottom: 10px;
+	/*bottom: 10px;*/
+	display: block;
+
 }
-#profile {
+.button {
 	display: inline-block;
 	cursor: pointer;
 	color: white;
 	text-decoration: none;
+	padding: 10px 20px 10px 20px;
+	border: 1px solid white;
+	border-radius: 50px;
+
 }
-#profile:hover {
+.button:hover {
 	color:  #22a6b3;
+	background-color: white;
+	color: rgb(34, 47, 62);
 }
+
+.repo-container {
+	width: 40%;
+	text-align: center;
+	color:  white;
+	z-index: 5;
+	position: relative;
+	top: 20%;
+	display: inline-block;
+	padding: 10px;
+	font-family: Tahoma, Helvetica, sans-serif;
+	font-size: 15px;
+	font-weight: bold;
+}
+
+.screen-width {
+	width: 100%;
+}
+
+.small-font {
+	font-size:20px;
+}
+
+.left-cont {
+	float: left;
+}
+
+.right-cont {
+	float:  right;
+}
+

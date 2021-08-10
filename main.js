@@ -33,10 +33,14 @@ function Canvas(canvasId){
 		shapes.push(shape);
 	}
 
-	self.fov = Math.PI / 2;
-	self.screenZ = (self.canvas.width/2) / (Math.tan(self.fov/2));
 
-	var transformation;
+	self.context.globalAlpha = 1;
+
+	self.fov = Math.PI / 2;
+	self.screenZ = (self.canvas.height/2) / (Math.tan(self.fov/2));
+	self.clock;
+
+	var transformations;
 	var projectionMat;
 	var translateMat;
 	var rotateMatX;
@@ -44,34 +48,53 @@ function Canvas(canvasId){
 	var rotateMatZ;
 	var angle = 0;
 
-	self.context.translate(Math.round(self.canvas.width / 2), Math.round(self.canvas.height / 2));
+	var elapsedTime;
+
+	self.context.translate(Math.floor(self.canvas.width / 2), Math.floor(self.canvas.height / 2));
 	self.context.lineWidth = 1;
 	self.context.strokeStyle = "white";
 	
-	self.draw = function(){
-		self.context.clearRect(-Math.round(self.canvas.width / 2), -Math.round(self.canvas.height / 2), 
-			Math.round(self.canvas.width), Math.round(self.canvas.height));
+	self.draw = function(timestamp){
+
+		
+		if (self.clock == undefined){
+			self.clock = timestamp;
+		}
+		elapsedTime = ((timestamp - self.clock)) / 1000;
+		self.clock = timestamp;
+		self.context.clearRect(-Math.floor(self.canvas.width / 2), -Math.floor(self.canvas.height / 2), 
+			Math.floor(self.canvas.width), Math.floor(self.canvas.height));
 
 		rotateMatX = rotateX(angle);
 		rotateMatY = rotateY(angle);
 		rotateMatZ = rotateZ(angle);
 
-		transformation = matrixMult(rotateMatX, matrixMult(rotateMatY, rotateMatZ))
+		transformations = [
+			matrixMult(rotateMatX, matrixMult(rotateMatY, rotateMatZ)),
+			matrixMult(rotateMatZ, matrixMult(rotateMatX, rotateMatY)),
+			matrixMult(rotateMatY, matrixMult(rotateMatZ, rotateMatX))
+		]
+
+		self.context.beginPath();
 
 		for (var i = 0; i < shapes.length; i++){
-			shapes[i].project(transformation, self.screenZ);
+			shapes[i].project(transformations[i % 3], self.screenZ);
 			shapes[i].draw(self.context, self.screenZ);
 
-			shapes[i].center[2][0] += shapes[i].velocity[2];
-			shapes[i].center[1][0] += shapes[i].velocity[1];
-			shapes[i].center[0][0] += shapes[i].velocity[0];
+			shapes[i].center[2][0] += shapes[i].velocity[2] * elapsedTime;
+			shapes[i].center[1][0] += shapes[i].velocity[1] * elapsedTime;
+			shapes[i].center[0][0] += shapes[i].velocity[0] * elapsedTime;
 
 			if (shapes[i].isOutside(self.canvas.width, self.canvas.height, self.screenZ)){
-				shapes[i].reset(self.canvas.width, self.canvas.height, self.fov);
+				shapes[i].reset(self.canvas.width, self.canvas.height, self.fov, self.screenZ);
 			}
 		}
 
+		self.context.stroke();
+
 		angle += 0.01;
+
+		
 
 		window.requestAnimationFrame(self.draw);
 	};
@@ -81,11 +104,9 @@ function Canvas(canvasId){
 }
 
 
-function drawLine(start, end){
-	var path = new Path2D();
-	path.moveTo(Math.round(start[0]), Math.round(start[1]));
-	path.lineTo(Math.round(end[0]), Math.round(end[1]));
-	return path;
+function drawLine(context, start, end){
+	context.moveTo(Math.floor(start[0]), Math.floor(start[1]));
+	context.lineTo(Math.floor(end[0]), Math.floor(end[1]));
 }
 
 
@@ -187,18 +208,18 @@ class Shape{
 		this.transformedCenter = [];
 		this.transformed = [];
 		if (this.center[0] >= 0){
-			var velX = 4;
+			var velX = 400;
 		}
 		else {
-			var velX = -4;
+			var velX = -400;
 		}
 		if (this.center[1] >= 0){
-			var velY = 3;
+			var velY = 300;
 		}
 		else {
-			var velY = -3;
+			var velY = -300;
 		}
-		this.velocity = [velX, velY, -(Math.random() * 20 + 20)];
+		this.velocity = [velX, velY, -(Math.random() * 2000 + 2000)];
 	}
 	project(transformation, screenZ){
 		var translateMat = translate(this.center[0], this.center[1], this.center[2]);
@@ -215,8 +236,7 @@ class Shape{
 			if (start[2] <= screenZ || end[2] <= screenZ){
 				break;
 			}
-			var path = drawLine(start, end);
-			context.stroke(path);
+			drawLine(context, start, end);
 		}
 	}
 
@@ -228,16 +248,15 @@ class Shape{
 		}
 	}
 
-	reset(screenWidth, screenHeight, fov){
+	reset(screenWidth, screenHeight, fov, screenZ){
 		var z = Math.random() * 1000 + 20000;
-		var x = Math.random() * Math.tan(fov/2) * z - Math.tan(fov/2) * z / 2;
-		var y = Math.random() * Math.tan(fov/2) * z - Math.tan(fov/2) * z / 2;
-
+		var y = Math.random() * Math.tan(fov/2) * z / 2 - Math.tan(fov/2) * z / 4;
+		var x = (screenWidth / screenHeight) * (Math.random() * Math.tan(fov/2) * z / 2 - Math.tan(fov/2) * z / 4);
 		this.center = [[x], [y], [z], [1]];
-		this.velocity = [0, 0, -(Math.random() * 20 + 30)];
+		this.velocity = [0, 0, -(Math.random() * 2000 + 2000)];
 	}
 }
 
 var main = new Canvas("main-canvas");
 
-main.draw();
+window.requestAnimationFrame(main.draw);
