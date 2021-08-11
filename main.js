@@ -28,7 +28,7 @@ function Canvas(canvasId){
 			[Math.random() * self.canvas.width - self.canvas.width / 2],
 			[Math.random() * self.canvas.height - self.canvas.height / 2],
 			[Math.random() * 18000 + 2000],
-			[0]
+			[1]
 		]);
 		shapes.push(shape);
 	}
@@ -137,13 +137,11 @@ function matrixScale(A, s){
 	return A;
 }
 
-
-
 function rotateX(angle){
 	return [
-		[0, Math.cos(angle), Math.sin(angle), 0],
 		[1, 0, 0, 0],
-		[0, -Math.sin(angle), Math.cos(angle), 0],
+		[0, Math.cos(angle), -Math.sin(angle), 0],
+		[0, Math.sin(angle), Math.cos(angle), 0],
 		[0, 0, 0, 1]
 	];
 }
@@ -159,8 +157,8 @@ function rotateY(angle){
 
 function rotateZ(angle){
 	return [
-		[Math.cos(angle), Math.sin(angle), 0, 0],
-		[-Math.sin(angle), Math.cos(angle), 0, 0],
+		[Math.cos(angle), -Math.sin(angle), 0, 0],
+		[Math.sin(angle), Math.cos(angle), 0, 0],
 		[0, 0, 1, 0],
 		[0, 0, 0, 1]
 	];
@@ -171,7 +169,7 @@ function orthogonalProject(){
 	return [
 		[1, 0, 0, 0],
 		[0, 1, 0, 0],
-		[0, 0, 0, 0],
+		[0, 0, 1, 0],
 		[0, 0, 0, 1]
 	];
 }
