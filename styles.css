@@ -2,7 +2,7 @@ body {
   overflow: hidden;
 }
 
-#main-canvas {
+.canvas {
 	background-color: rgb(34, 47, 62);
 	position: absolute;
 	margin: 0;
