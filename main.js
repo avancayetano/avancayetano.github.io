@@ -5,7 +5,7 @@ function Canvas(canvasId){
 	self.context = self.canvas.getContext("2d");
 	self.canvas.height = document.body.clientHeight;
 	self.canvas.width = document.body.clientWidth;
-	
+
 
 	var vertices = [
 		[[-300], [-300], [-300], [1]],
@@ -33,7 +33,6 @@ function Canvas(canvasId){
 		]);
 		shapes.push(shape);
 	}
-
 
 	self.context.globalAlpha = 1;
 
