@@ -5,6 +5,7 @@ function Canvas(canvasId){
 	self.context = self.canvas.getContext("2d");
 	self.canvas.height = document.body.clientHeight;
 	self.canvas.width = document.body.clientWidth;
+	
 
 	var vertices = [
 		[[-300], [-300], [-300], [1]],
