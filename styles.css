@@ -1,5 +1,7 @@
 body {
   overflow: hidden;
+  height: 100vh;
+  width: 100%;
 }
 
 .canvas {
@@ -60,6 +62,7 @@ body {
 
 .repo-container {
 	width: 40%;
+	height: auto;
 	text-align: center;
 	color:  white;
 	z-index: 5;
@@ -80,11 +83,16 @@ body {
 	font-size:20px;
 }
 
-.left-cont {
-	float: left;
+.body-container {
+	display: table;
+	width: 100%;
 }
 
-.right-cont {
-	float:  right;
+.row {
+	display: table-row;
 }
 
+.cell {
+	display: table-cell;
+	margin: auto;
+}
