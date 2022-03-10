@@ -3,7 +3,7 @@ body {
 }
 
 .canvas {
-	background-color: rgb(34, 47, 62);
+	background-color: #e84393;
 	position: absolute;
 	margin: 0;
 	padding: 0;
@@ -55,7 +55,7 @@ body {
 .button:hover {
 	color:  #22a6b3;
 	background-color: white;
-	color: rgb(34, 47, 62);
+	color: #e84393;
 }
 
 .repo-container {

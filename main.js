@@ -51,7 +51,7 @@ function Canvas(canvasId){
 	var elapsedTime;
 
 	self.context.translate(Math.floor(self.canvas.width / 2), Math.floor(self.canvas.height / 2));
-	self.context.lineWidth = 1;
+	self.context.lineWidth = 2;
 	self.context.strokeStyle = "white";
 	
 	self.draw = function(timestamp){
