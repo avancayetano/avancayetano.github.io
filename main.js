@@ -1,4 +1,45 @@
 
+var cameraDir = [0, 0, 0];
+var cameraSpeed = 1;
+document.addEventListener("keydown", function(event){
+	event.preventDefault();
+	if (event.key == "w"){
+		cameraDir[1] = -1;
+	}
+	else if (event.key == "s"){
+		cameraDir[1] = 1;
+	}
+	else if (event.key == "a"){
+		cameraDir[0] = -1;
+	}
+	else if (event.key == "d"){
+		cameraDir[0] = 1;
+	}
+	else if (event.key == " "){
+		cameraDir[2] = 1;
+	}
+});
+
+document.addEventListener("keyup", function(event){
+	event.preventDefault();
+	if (event.key == "w"){
+		cameraDir[1] = 0;
+	}
+	else if (event.key == "s"){
+		cameraDir[1] = 0;
+	}
+	else if (event.key == "a"){
+		cameraDir[0] = 0;
+	}
+	else if (event.key == "d"){
+		cameraDir[0] = 0;
+	}
+	else if (event.key == " "){
+		cameraDir[2] = 0;	
+	}
+});
+
+
 function Canvas(canvasId){
 	var self = this;
 	self.canvas = document.getElementById(canvasId);
@@ -6,6 +47,8 @@ function Canvas(canvasId){
 	self.canvas.height = document.body.clientHeight;
 	self.canvas.width = document.body.clientWidth;
 
+	self.fov = Math.PI / 2;
+	self.screenZ = (self.canvas.height/2) / (Math.tan(self.fov/2));
 
 	var vertices = [
 		[[-300], [-300], [-300], [1]],
@@ -22,13 +65,17 @@ function Canvas(canvasId){
 		[4, 5], [5, 6], [6, 7], [7, 4],
 		[0, 4], [1, 5], [2, 6], [3, 7]
 	];
+
 	var shape;
 	var shapes = [];
-	for (var i = 0; i < 30; i++){
+	for (var i = 0; i < 75; i++){
+		var z = Math.random()*1000 + 20000;
+		var y = Math.random()*(2*Math.tan(self.fov/2)*z-1500) - Math.tan(self.fov/2)*z+1500;
+		var x = (self.canvas.width/self.canvas.height) * (Math.random()*(2*Math.tan(self.fov/2)*z-1500)  - Math.tan(self.fov/2)*z+1500);
 		shape = new Shape(vertices, edges, [
-			[Math.random() * self.canvas.width - self.canvas.width / 2],
-			[Math.random() * self.canvas.height - self.canvas.height / 2],
-			[Math.random() * 18000 + 2000],
+			[x],
+			[y],
+			[z],
 			[1]
 		]);
 		shapes.push(shape);
@@ -36,8 +83,7 @@ function Canvas(canvasId){
 
 	self.context.globalAlpha = 1;
 
-	self.fov = Math.PI / 2;
-	self.screenZ = (self.canvas.height/2) / (Math.tan(self.fov/2));
+
 	self.clock;
 
 	var transformations;
@@ -81,6 +127,13 @@ function Canvas(canvasId){
 			shapes[i].project(transformations[i % 3], self.screenZ);
 			shapes[i].draw(self.context, self.screenZ);
 
+
+			shapes[i].centerOffset = [
+				shapes[i].centerOffset[0] + cameraDir[0] * cameraSpeed,
+				shapes[i].centerOffset[1] + cameraDir[1] * cameraSpeed,
+				shapes[i].centerOffset[2] + cameraDir[2] * cameraSpeed,
+			];
+
 			shapes[i].center[2][0] += shapes[i].velocity[2] * elapsedTime;
 			shapes[i].center[1][0] += shapes[i].velocity[1] * elapsedTime;
 			shapes[i].center[0][0] += shapes[i].velocity[0] * elapsedTime;
@@ -102,6 +155,10 @@ function Canvas(canvasId){
 
 	return self;
 }
+
+
+
+
 
 
 function drawLine(context, start, end){
@@ -217,9 +274,17 @@ class Shape{
 		else {
 			var velY = -300;
 		}
+
+		this.centerOffset = [0, 0, 0];
+
 		this.velocity = [velX, velY, -(Math.random() * 2000 + 2000)];
 	}
 	project(transformation, screenZ){
+		// transformation here are the rotations
+		this.center[0][0] = this.center[0][0] - this.centerOffset[0];
+		this.center[1][0] = this.center[1][0] - this.centerOffset[1];
+		this.center[2][0] = this.center[2][0] - this.centerOffset[2];
+
 		var translateMat = translate(this.center[0], this.center[1], this.center[2]);
 		this.transformedCenter = matrixMult(perspectiveProject(screenZ, this.center[2][0]), this.center);
 		for (var i = 0; i < this.vertices.length; i++){
@@ -247,11 +312,12 @@ class Shape{
 	}
 
 	reset(screenWidth, screenHeight, fov, screenZ){
-		var z = Math.random() * 1000 + 20000;
-		var y = Math.random() * Math.tan(fov/2) * z / 2 - Math.tan(fov/2) * z / 4;
-		var x = (screenWidth / screenHeight) * (Math.random() * Math.tan(fov/2) * z / 2 - Math.tan(fov/2) * z / 4);
+		var z = Math.random()*1000 + 20000;
+		var y = Math.random()*(2*Math.tan(fov/2)*z-1500) - Math.tan(fov/2)*z+1500;
+		var x = (screenWidth/screenHeight) * (Math.random()*(2*Math.tan(fov/2)*z-1500)  - Math.tan(fov/2)*z+1500);
 		this.center = [[x], [y], [z], [1]];
 		this.velocity = [0, 0, -(Math.random() * 2000 + 2000)];
+		this.centerOffset = [0, 0, 0];
 	}
 }
 
