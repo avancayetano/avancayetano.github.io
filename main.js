@@ -287,8 +287,9 @@ class Shape{
 
 		var translateMat = translate(this.center[0], this.center[1], this.center[2]);
 		this.transformedCenter = matrixMult(perspectiveProject(screenZ, this.center[2][0]), this.center);
+		var tempTransformation = matrixMult(translateMat, transformation);
 		for (var i = 0; i < this.vertices.length; i++){
-			this.transformed[i] = matrixMult(matrixMult(translateMat, transformation), this.vertices[i]);
+			this.transformed[i] = matrixMult(tempTransformation, this.vertices[i]);
 			this.transformed[i] = matrixMult(perspectiveProject(screenZ, this.transformed[i][2]), this.transformed[i])
 		}
 	}
