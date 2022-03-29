@@ -50,6 +50,9 @@ function Canvas(canvasId){
 	self.fov = Math.PI / 2;
 	self.screenZ = (self.canvas.height/2) / (Math.tan(self.fov/2));
 
+
+
+
 	var vertices = [
 		[[-300], [-300], [-300], [1]],
 		[[300], [-300], [-300], [1]],
@@ -68,8 +71,8 @@ function Canvas(canvasId){
 
 	var shape;
 	var shapes = [];
-	for (var i = 0; i < 75; i++){
-		var z = Math.random()*1000 + 20000;
+	for (var i = 0; i < 50; i++){
+		var z = Math.random()*5000 + 20000;
 		var y = Math.random()*(2*Math.tan(self.fov/2)*z-1500) - Math.tan(self.fov/2)*z+1500;
 		var x = (self.canvas.width/self.canvas.height) * (Math.random()*(2*Math.tan(self.fov/2)*z-1500)  - Math.tan(self.fov/2)*z+1500);
 		shape = new Shape(vertices, edges, [
@@ -99,7 +102,27 @@ function Canvas(canvasId){
 	self.context.translate(Math.floor(self.canvas.width / 2), Math.floor(self.canvas.height / 2));
 	self.context.lineWidth = 2;
 	self.context.strokeStyle = "white";
-	
+
+
+	// self.canvas.parentElement.addEventListener("click", function(event){
+	// 	event.preventDefault();
+	// 	var z = Math.random()*5000 + 3000;
+	// 	var yScreen = event.y - self.canvas.height/2;
+	// 	var angle = Math.atan(yScreen/self.screenZ);
+	// 	var y = Math.tan(angle)*z;
+	// 	var x = (self.canvas.width/self.canvas.height) * y;
+	// 	console.log(y);
+	// 	console.log(x);
+
+
+	// 	shapes.push(new Shape(vertices, edges, [
+	// 		[x],
+	// 		[y],
+	// 		[z],
+	// 		[1]
+	// 	]));
+	// })
+
 	self.draw = function(timestamp){
 
 		
@@ -313,7 +336,7 @@ class Shape{
 	}
 
 	reset(screenWidth, screenHeight, fov, screenZ){
-		var z = Math.random()*1000 + 20000;
+		var z = Math.random()*5000 + 20000;
 		var y = Math.random()*(2*Math.tan(fov/2)*z-1500) - Math.tan(fov/2)*z+1500;
 		var x = (screenWidth/screenHeight) * (Math.random()*(2*Math.tan(fov/2)*z-1500)  - Math.tan(fov/2)*z+1500);
 		this.center = [[x], [y], [z], [1]];
