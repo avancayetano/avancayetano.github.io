@@ -101,7 +101,7 @@ function Canvas(canvasId){
 
 	self.context.translate(Math.floor(self.canvas.width / 2), Math.floor(self.canvas.height / 2));
 	self.context.lineWidth = 2;
-	self.context.strokeStyle = "white";
+	self.context.strokeStyle = "green";
 
 
 	// self.canvas.parentElement.addEventListener("click", function(event){
