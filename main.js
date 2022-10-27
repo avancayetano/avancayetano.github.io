@@ -1,67 +1,162 @@
+"use strict";
 
-var cameraDir = [0, 0, 0];
-var cameraSpeed = 1;
-document.addEventListener("keydown", function(event){
-	event.preventDefault();
-	if (event.key == "w"){
-		cameraDir[1] = -1;
-	}
-	else if (event.key == "s"){
-		cameraDir[1] = 1;
-	}
-	else if (event.key == "a"){
-		cameraDir[0] = -1;
-	}
-	else if (event.key == "d"){
-		cameraDir[0] = 1;
-	}
-	else if (event.key == " "){
-		cameraDir[2] = 1;
-	}
-});
+import Engine from "../engine.js";
 
-document.addEventListener("keyup", function(event){
-	event.preventDefault();
-	if (event.key == "w"){
-		cameraDir[1] = 0;
-	}
-	else if (event.key == "s"){
-		cameraDir[1] = 0;
-	}
-	else if (event.key == "a"){
-		cameraDir[0] = 0;
-	}
-	else if (event.key == "d"){
-		cameraDir[0] = 0;
-	}
-	else if (event.key == " "){
-		cameraDir[2] = 0;	
-	}
-});
+var vShaderSource = `#version 300 es
+
+in vec4 vertexPos;
+in vec3 orientation;
+
+out float intensity;
+
+uniform mat4 projection;
+uniform mat4 camera;
+uniform mat4 model;
+uniform mat4 local;
+
+uniform vec4 lightDir;
+
+void main(){
+	gl_Position = projection * inverse(camera) * model * local * vertexPos;
+	
+	intensity = dot(normalize(local * vec4(orientation, 1.0)), normalize(lightDir));
+	intensity = (-intensity + 1.0) / 2.0;
+	intensity = intensity * ((-gl_Position.z + 1.0)/2.0);
+}
+`;
+
+var fShaderSource = `#version 300 es
+
+precision highp float;
+
+in float intensity;
+
+out vec4 outColor;
+
+void main(){
+	outColor = vec4(1, 0, 0.5, 1) * intensity;
+}
+`;
 
 
-function Canvas(canvasId){
+class Shape{
+	constructor(mesh, screenWidth, screenHeight, fov, nearZ, farZ){
+		this.vertices = mesh.vertices;
+		this.edges = mesh.edges;
+		this.faces = mesh.faces;
+		this.orientation = mesh.orientation;
+		this.reset(screenWidth, screenHeight, fov, nearZ, farZ);
+
+	}
+
+	draw(gl, positionBuffer){
+		this.setEdges(gl, positionBuffer);
+		var primitiveType = gl.LINES;
+		var offset = 0;
+		var count = this.edges.length * 2;
+		gl.drawArrays(primitiveType, offset, count);
+	}
+
+	setEdges(gl, positionBuffer){
+		var vertices = this.edges.reduce((ret, curr) => 
+			ret.concat([...this.vertices[curr[0]].map((v => v[0])), ...this.vertices[curr[1]].map((v => v[0]))]), []
+		);
+		gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+	}
+
+	drawFill(gl, positionBuffer, orientationBuffer){
+		this.setFaces(gl, positionBuffer);
+		this.setOrientation(gl, orientationBuffer);
+		var primitiveType = gl.TRIANGLES;
+		var offset = 0;
+		var count = this.faces.length * 3;
+		gl.drawArrays(primitiveType, offset, count);
+	}
+
+	setFaces(gl, positionBuffer){
+		var vertices = this.faces.reduce((ret, curr) => 
+			ret.concat([...this.vertices[curr[0]].map((v => v[0])), ...this.vertices[curr[1]].map((v => v[0])), ...this.vertices[curr[2]].map((v => v[0]))]), []
+		);
+		gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+	}
+
+	setOrientation(gl, orientationBuffer){
+		var orientation = [];
+		for (var idx in this.faces){
+			orientation.push(...this.orientation[idx]);
+			orientation.push(...this.orientation[idx]);
+			orientation.push(...this.orientation[idx]);
+		}
+		gl.bindBuffer(gl.ARRAY_BUFFER, orientationBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(orientation), gl.STATIC_DRAW);
+	}
+
+
+	isOutside(nearZ){
+		if (this.center[2] - 2830 < nearZ){
+			return true;
+		}
+		return false;
+	}
+
+	reset(screenWidth, screenHeight, fov, nearZ, farZ){
+		var z = farZ;
+		var y = Math.random()*(1.75*Math.tan(fov/2)*z) - Math.tan(fov/2)*z;
+		var x = (screenWidth/screenHeight) * (Math.random()*(1.75*Math.tan(fov/2)*z) - Math.tan(fov/2)*z);
+		this.center = [[x], [y], [z], [1]];
+
+		this.velocity = [0, 0, -(Math.random() * 4000 + 4000)];
+	}
+}
+
+
+
+function Main(){
 	var self = this;
-	self.canvas = document.getElementById(canvasId);
-	self.context = self.canvas.getContext("2d");
-	self.canvas.height = document.body.clientHeight;
-	self.canvas.width = document.body.clientWidth;
 
-	self.fov = Math.PI / 2;
-	self.screenZ = (self.canvas.height/2) / (Math.tan(self.fov/2));
+	var [canvas, gl] = engine.initCanvas("main-canvas");
+	
+	var program = engine.initProgram(gl, vShaderSource, fShaderSource);
+	gl.useProgram(program);
+
+	gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+	gl.enable(gl.DEPTH_TEST);
+	gl.enable(gl.CULL_FACE);
 
 
+	var vertexPositionLoc = gl.getAttribLocation(program, "vertexPos");
+	var orientationLoc = gl.getAttribLocation(program, "orientation");
 
+	var projectionMatLoc = gl.getUniformLocation(program, "projection");
+	var cameraMatLoc = gl.getUniformLocation(program, "camera");
+	var modelMatLoc = gl.getUniformLocation(program, "model");
+	var localMatLoc = gl.getUniformLocation(program, "local");
+	
+	var lightDirLoc = gl.getUniformLocation(program, "lightDir");
+
+
+	var fov = Math.PI / 2;
+	var nearZ = (canvas.height/2) / (Math.tan(fov/2));
+	var farZ = 100000;
+	var angle = 0;
+
+	var projectionMat = engine.projectionMat(canvas.width, canvas.height, nearZ, farZ);
+	engine.setUniformMat(gl, projectionMatLoc, projectionMat, true);
+
+	var cameraMat = engine.identityMat();
+	engine.setUniformMat(gl, cameraMatLoc, cameraMat, true);
 
 	var vertices = [
-		[[-300], [-300], [-300], [1]],
-		[[300], [-300], [-300], [1]],
-		[[300], [300], [-300], [1]],
-		[[-300], [300], [-300], [1]],
-		[[-300], [-300], [300], [1]],
-		[[300], [-300], [300], [1]],
-		[[300], [300], [300], [1]],
-		[[-300], [300], [300], [1]]
+		[[-2000], [-2000], [-2000], [1]],
+		[[2000], [-2000], [-2000], [1]],
+		[[2000], [2000], [-2000], [1]],
+		[[-2000], [2000], [-2000], [1]],
+		[[-2000], [-2000], [2000], [1]],
+		[[2000], [-2000], [2000], [1]],
+		[[2000], [2000], [2000], [1]],
+		[[-2000], [2000], [2000], [1]]
 	];
 	var edges = [
 		[0, 1], [1, 2], [2, 3], [3, 0],
@@ -69,282 +164,108 @@ function Canvas(canvasId){
 		[0, 4], [1, 5], [2, 6], [3, 7]
 	];
 
-	var shape;
-	var shapes = [];
-	for (var i = 0; i < 50; i++){
-		var z = Math.random()*5000 + 20000;
-		var y = Math.random()*(2*Math.tan(self.fov/2)*z-1500) - Math.tan(self.fov/2)*z+1500;
-		var x = (self.canvas.width/self.canvas.height) * (Math.random()*(2*Math.tan(self.fov/2)*z-1500)  - Math.tan(self.fov/2)*z+1500);
-		shape = new Shape(vertices, edges, [
-			[x],
-			[y],
-			[z],
-			[1]
-		]);
-		shapes.push(shape);
+	var faces = [
+		[0, 3, 1], [3, 2, 1],
+		[1, 2, 6], [6, 5, 1],
+		[5, 6, 7], [7, 4, 5],
+		[3, 0, 4], [7, 3, 4],
+		[0, 1, 5], [5, 4, 0],
+		[6, 2, 3], [7, 6, 3]
+	];
+
+	var orientation = [
+		[0, 0, -1], [0, 0, -1],
+		[1, 0, 0], [1, 0, 0],
+		[0, 0, 1], [0, 0, 1],
+		[-1, 0, 0], [-1, 0, 0],
+		[0, -1, 0], [0, -1, 0],
+		[0, 1, 0], [0, 1, 0]
+	];
+
+	var mesh = {
+		vertices: vertices,
+		edges: edges,
+		faces: faces,
+		orientation: orientation
 	}
 
-	self.context.globalAlpha = 1;
+	var shapes = [];
+	for (var i = 0; i < 50; i++){
+		shapes.push(new Shape(mesh, canvas.width, canvas.height, fov, nearZ, farZ));
+	}
+
+	var positionBuffer = gl.createBuffer();
+	var orientationBuffer = gl.createBuffer();
+
+	var vao = gl.createVertexArray();
+	gl.bindVertexArray(vao);
+
+	gl.enableVertexAttribArray(vertexPositionLoc);
+	gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+	gl.vertexAttribPointer(vertexPositionLoc, 4, gl.FLOAT, false, 0, 0);
+
+	gl.enableVertexAttribArray(orientationLoc);
+	gl.bindBuffer(gl.ARRAY_BUFFER, orientationBuffer);
+	gl.vertexAttribPointer(orientationLoc, 3, gl.FLOAT, false, 0, 0);
 
 
-	self.clock;
+	self.gameLoop = function(timestamp){
 
-	var transformations;
-	var projectionMat;
-	var translateMat;
-	var rotateMatX;
-	var rotateMatY;
-	var rotateMatZ;
-	var angle = 0;
+		gl.clearColor(0, 0, 0, 0);
+		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-	var elapsedTime;
+		var elapsedTime = engine.getElapsedTime(timestamp);
 
-	self.context.translate(Math.floor(self.canvas.width / 2), Math.floor(self.canvas.height / 2));
-	self.context.lineWidth = 2;
-	self.context.strokeStyle = "green";
-
-
-	// self.canvas.parentElement.addEventListener("click", function(event){
-	// 	event.preventDefault();
-	// 	var z = Math.random()*5000 + 3000;
-	// 	var yScreen = event.y - self.canvas.height/2;
-	// 	var angle = Math.atan(yScreen/self.screenZ);
-	// 	var y = Math.tan(angle)*z;
-	// 	var x = (self.canvas.width/self.canvas.height) * y;
-	// 	console.log(y);
-	// 	console.log(x);
-
-
-	// 	shapes.push(new Shape(vertices, edges, [
-	// 		[x],
-	// 		[y],
-	// 		[z],
-	// 		[1]
-	// 	]));
-	// })
-
-	self.draw = function(timestamp){
-
-		
-		if (self.clock == undefined){
-			self.clock = timestamp;
-		}
-		elapsedTime = ((timestamp - self.clock)) / 1000;
-		self.clock = timestamp;
-		self.context.clearRect(-Math.floor(self.canvas.width / 2), -Math.floor(self.canvas.height / 2), 
-			Math.floor(self.canvas.width), Math.floor(self.canvas.height));
-
-		rotateMatX = rotateX(angle);
-		rotateMatY = rotateY(angle);
-		rotateMatZ = rotateZ(angle);
-
-		transformations = [
-			matrixMult(rotateMatX, matrixMult(rotateMatY, rotateMatZ)),
-			matrixMult(rotateMatZ, matrixMult(rotateMatX, rotateMatY)),
-			matrixMult(rotateMatY, matrixMult(rotateMatZ, rotateMatX))
-		]
-
-		self.context.beginPath();
-
-		for (var i = 0; i < shapes.length; i++){
-			shapes[i].project(transformations[i % 3], self.screenZ);
-			shapes[i].draw(self.context, self.screenZ);
-
-
-			shapes[i].centerOffset = [
-				shapes[i].centerOffset[0] + cameraDir[0] * cameraSpeed,
-				shapes[i].centerOffset[1] + cameraDir[1] * cameraSpeed,
-				shapes[i].centerOffset[2] + cameraDir[2] * cameraSpeed,
-			];
-
-			shapes[i].center[2][0] += shapes[i].velocity[2] * elapsedTime;
-			shapes[i].center[1][0] += shapes[i].velocity[1] * elapsedTime;
-			shapes[i].center[0][0] += shapes[i].velocity[0] * elapsedTime;
-
-			if (shapes[i].isOutside(self.canvas.width, self.canvas.height, self.screenZ)){
-				shapes[i].reset(self.canvas.width, self.canvas.height, self.fov, self.screenZ);
-			}
-		}
-
-		self.context.stroke();
+		gl.bindVertexArray(vao);
 
 		angle += 0.01;
+		var rotateMatX = engine.xRotationMat(angle);
+		var rotateMatY = engine.yRotationMat(angle);
+		var rotateMatZ = engine.zRotationMat(angle);
 
-		
+		var rotations = [
+			engine.multiplyMat(rotateMatX, engine.multiplyMat(rotateMatY, rotateMatZ)),
+			engine.multiplyMat(rotateMatZ, engine.multiplyMat(rotateMatX, rotateMatY)),
+			engine.multiplyMat(rotateMatY, engine.multiplyMat(rotateMatZ, rotateMatX))
+		];
 
-		window.requestAnimationFrame(self.draw);
+
+		for (var i in shapes){
+			var shape = shapes[i];
+			// newCenter = translationMat * center
+			// projection * modelMat(newCenter) * (rotationMat * scaleMat) * vertex
+
+			shape.center = engine.multiplyMat(engine.translationMat(
+				shape.velocity[0] * elapsedTime, shape.velocity[1] * elapsedTime, shape.velocity[2] * elapsedTime), shape.center);
+
+			var rotationMat = rotations[i % 3];
+
+			engine.setUniformMat(gl, localMatLoc, rotationMat, true);
+			engine.setUniformMat(gl, modelMatLoc, engine.modelMat(shape.center), true);
+
+
+
+			engine.setUniformVec(gl, lightDirLoc, shape.center, true);
+
+			shape.drawFill(gl, positionBuffer, orientationBuffer);
+
+
+			if (shape.isOutside(nearZ)){
+				shape.reset(canvas.width, canvas.height, fov, nearZ, farZ);
+			}
+
+		}
+
+		window.requestAnimationFrame(self.gameLoop);
 	};
-
 
 	return self;
 }
 
 
+const engine = new Engine();
+const main = new Main();
 
 
+window.requestAnimationFrame(main.gameLoop);
 
-
-function drawLine(context, start, end){
-	context.moveTo(Math.floor(start[0]), Math.floor(start[1]));
-	context.lineTo(Math.floor(end[0]), Math.floor(end[1]));
-}
-
-
-function matrixMult(A, B){
-	var product = [];
-	var sum;
-
-	for (var i = 0; i < A.length; i++){
-		product[i] = [];
-		for (var j = 0; j < B[i].length; j++){
-			sum = 0;
-			for (var k = 0; k < A[i].length; k++){
-				sum += A[i][k] * B[k][j];
-			}
-			product[i].push(sum);
-		}
-	}
-	return product;
-}
-
-
-function matrixScale(A, s){
-	for (var i = 0; i < A.length; i++){
-		for (var j = 0; j < A[i].length; j++){
-			A[i][j] = s * A[i][j];
-		}
-	}
-	return A;
-}
-
-function rotateX(angle){
-	return [
-		[1, 0, 0, 0],
-		[0, Math.cos(angle), -Math.sin(angle), 0],
-		[0, Math.sin(angle), Math.cos(angle), 0],
-		[0, 0, 0, 1]
-	];
-}
-
-function rotateY(angle){
-	return [
-		[Math.cos(angle), 0, Math.sin(angle), 0],
-		[0, 1, 0, 0],
-		[-Math.sin(angle), 0, Math.cos(angle), 0],
-		[0, 0, 0, 1]
-	];
-}
-
-function rotateZ(angle){
-	return [
-		[Math.cos(angle), -Math.sin(angle), 0, 0],
-		[Math.sin(angle), Math.cos(angle), 0, 0],
-		[0, 0, 1, 0],
-		[0, 0, 0, 1]
-	];
-}
-
-
-function orthogonalProject(){
-	return [
-		[1, 0, 0, 0],
-		[0, 1, 0, 0],
-		[0, 0, 1, 0],
-		[0, 0, 0, 1]
-	];
-}
-
-function perspectiveProject(screenZ, z){
-	if (z == 0){
-		z = 1;
-	}
-	return [
-		[screenZ/z, 0, 0, 0],
-		[0, screenZ/z, 0, 0],
-		[0, 0, 1, 0],
-		[0, 0, 0, 1]
-	];
-}
-
-
-function translate(tx, ty, tz){
-	return [
-		[1, 0, 0, tx],
-		[0, 1, 0, ty],
-		[0, 0, 1, tz],
-		[0, 0, 0, 1]
-	];
-}
-
-
-
-class Shape{
-	constructor(vertices, edges, center){
-		this.vertices = vertices;
-		this.edges = edges;
-		this.center = center;
-		this.transformedCenter = [];
-		this.transformed = [];
-		if (this.center[0] >= 0){
-			var velX = 400;
-		}
-		else {
-			var velX = -400;
-		}
-		if (this.center[1] >= 0){
-			var velY = 300;
-		}
-		else {
-			var velY = -300;
-		}
-
-		this.centerOffset = [0, 0, 0];
-
-		this.velocity = [velX, velY, -(Math.random() * 2000 + 2000)];
-	}
-	project(transformation, screenZ){
-		// transformation here are the rotations
-		this.center[0][0] = this.center[0][0] - this.centerOffset[0];
-		this.center[1][0] = this.center[1][0] - this.centerOffset[1];
-		this.center[2][0] = this.center[2][0] - this.centerOffset[2];
-
-		var translateMat = translate(this.center[0], this.center[1], this.center[2]);
-		this.transformedCenter = matrixMult(perspectiveProject(screenZ, this.center[2][0]), this.center);
-		var tempTransformation = matrixMult(translateMat, transformation);
-		for (var i = 0; i < this.vertices.length; i++){
-			this.transformed[i] = matrixMult(tempTransformation, this.vertices[i]);
-			this.transformed[i] = matrixMult(perspectiveProject(screenZ, this.transformed[i][2]), this.transformed[i])
-		}
-	}
-	draw(context, screenZ){
-		for (var i = 0; i < this.edges.length; i++){
-			var start = this.transformed[this.edges[i][0]];
-			var end = this.transformed[this.edges[i][1]];
-			if (start[2] <= screenZ || end[2] <= screenZ){
-				break;
-			}
-			drawLine(context, start, end);
-		}
-	}
-
-	isOutside(screenWidth, screenHeight, screenZ){
-		if (this.transformedCenter[2][0] <= screenZ || 
-			Math.abs(this.transformedCenter[1][0]) > screenHeight / 2 + 200 ||
-			Math.abs(this.transformedCenter[0][0]) > screenWidth / 2 + 200){
-				return true;
-		}
-	}
-
-	reset(screenWidth, screenHeight, fov, screenZ){
-		var z = Math.random()*5000 + 20000;
-		var y = Math.random()*(2*Math.tan(fov/2)*z-1500) - Math.tan(fov/2)*z+1500;
-		var x = (screenWidth/screenHeight) * (Math.random()*(2*Math.tan(fov/2)*z-1500)  - Math.tan(fov/2)*z+1500);
-		this.center = [[x], [y], [z], [1]];
-		this.velocity = [0, 0, -(Math.random() * 2000 + 2000)];
-		this.centerOffset = [0, 0, 0];
-	}
-}
-
-var main = new Canvas("main-canvas");
-
-window.requestAnimationFrame(main.draw);

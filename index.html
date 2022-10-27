@@ -8,7 +8,7 @@
 <body>
 	<div class="main-container">
 		<div class="title">Hello, my name is Anthony Van Cayetano.</div>
-		<div class="title small-font">This is my portfolio.</div>
+		<div class="title small-font">This is my portfolio. [WIP]</div>
 		<br>
 		<div class="button-container">
 			<a target="_blank" rel="noopener noreferrer" href="https://github.com/avancayetano" class="button">
@@ -54,16 +54,22 @@
 				</div>
 			</div>
 		</div>
-		<br>
-		<br>
-		<div class="title small-font">Press WASD to control and SPACE to boost forward.</div>
+		<div class="title small-font">I made the page background using helper4webgl2, my helper library for WebGL2.</div>
+		<div class="button-container">
+			<a target="_blank" rel="noopener noreferrer" href="https://github.com/avancayetano/helper4webgl2" class="button">
+				<div>View helper4webgl2</div>
+			</a>
+		</div>
 		<div class="button-container">
 			<a target="_blank" rel="noopener noreferrer" href="https://github.com/avancayetano/avancayetano.github.io" class="button">
 				<div>View Page Source Code</div>
 			</a>
 		</div>
-		<canvas class="canvas" id="main-canvas"></canvas>
+
+		
 	</div>
-	<script type="text/javascript" src="main.js"></script>
+	<canvas class="canvas" id="main-canvas"></canvas>
+	<script type="module" src="../engine.js"></script>
+	<script type="module" src="./main.js"></script>
 </body>
 </html>

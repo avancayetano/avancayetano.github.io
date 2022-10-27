@@ -1,7 +1,8 @@
 body {
-  overflow: hidden;
+  overflow-x: hidden;
   height: 100vh;
   width: 100%;
+  background-color: black;
 }
 
 .canvas {
@@ -11,7 +12,9 @@ body {
 	padding: 0;
 	left:  0px;
 	top: 0px;
-	overflow: hidden;
+	/* overflow: hidden; */
+	height: 100%;
+	width: 100%;
 }
 .title {
 	position: relative;
@@ -21,7 +24,7 @@ body {
 	margin: auto;
 	text-align: center;
 	width: 50%;
-	padding: 10px;
+	padding-top: 50px;
 	font-family: Tahoma, Arial, Helvetica, sans-serif;
 	font-size: 40px;
 	font-weight: bold;
@@ -36,7 +39,8 @@ body {
 	margin:  auto;
 	text-align: center;
 	width: 50%;
-	padding: 10px;
+	padding-bottom: 10px;
+	padding-top: 10px;
 	font-family: Tahoma, Helvetica, sans-serif;
 	font-size: 24px;
 	font-weight: bold;
@@ -54,8 +58,9 @@ body {
 
 }
 .button:hover {
-	background-color: white;
-	color: black;
+	background-color: rgb(235, 69, 152);
+	color: white;
+	border-color: rgb(235, 69, 152);
 }
 
 .repo-container {
